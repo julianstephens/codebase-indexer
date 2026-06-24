@@ -101,7 +101,7 @@ pip install tree-sitter zstandard pathspec typer
 ### Index a repository
 
 ```bash
-python -m indexer index /path/to/my-repo
+indexer index /path/to/my-repo
 ```
 
 Produces:
@@ -122,29 +122,24 @@ The working database is cached at:
 ### Print the skeleton
 
 ```bash
-python -m indexer skeleton /path/to/my-repo
+indexer skeleton my-app
 ```
 
 ### Query from the CLI
 
 ```bash
 # Fetch a node's full source
-python -m indexer get-source /path/to/my-repo \
-    "src.payments.service.charge"
+indexer get-source "src.payments.service.charge" --project my-app
 
 # Full-text search
-python -m indexer search /path/to/my-repo "sql injection"
-
-# Blast radius
-python -m indexer trace-callers /path/to/my-repo \
-    "src.payments.service.charge" --depth 3
+indexer search "sql injection" --project my-app
 ```
 
 ### Re-index (incremental)
 
 ```bash
 # Only changed files are re-extracted
-python -m indexer index /path/to/my-repo --incremental
+indexer index /path/to/my-repo --incremental
 ```
 
 ### Use from Python

@@ -1,0 +1,23 @@
+site_name: codebase-indexer
+site_description: A tool that indexes a source repository into a compressed SQLite knowledge graph for AI agents.
+site_url: https://julianstephens.github.io/codebase-indexer
+repo_url: https://github.com/julianstephens/codebase-indexer
+repo_name: julianstephens/codebase-indexer
+
+theme:
+  name: readthedocs
+
+markdown_extensions:
+  - tables
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Agent Integration: agent-integration.md
+  - Reference:
+      - CLI: reference/cli.md
+      - Supported Languages: reference/languages.md

@@ -1,4 +1,4 @@
-.PHONY: help build check clean fmt lint test
+.PHONY: help build check clean fmt lint test docs
 
 default: check
 
@@ -12,7 +12,7 @@ help:
 	@echo "  fmt         Format the code"
 	@echo "  lint        Lint the code"
 	@echo "  test        Run tests"
-
+	@echo "  docs        Generate documentation"	
 
 build:
 	@echo "Building the project..."
@@ -37,3 +37,7 @@ lint:
 test:
 	@echo "Running tests..."
 	@uv run pytest --cov=./src tests/
+
+docs: fmt
+	@echo "Generating documentation..."
+	@uvx mkdocs build
