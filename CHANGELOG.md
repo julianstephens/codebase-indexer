@@ -1,3 +1,13 @@
+# Changelog
+
+## v1.0.3
+
+- Promoted supported tree-sitter language parser packages to runtime
+  dependencies so `indexer index` works across supported languages in
+  production installs (including pipx)
+- Updated installation and language docs to reflect runtime parser
+  packaging and benchmark command output guidance
+
 ## v1.0.2
 
 - Added benchmark matrix test infrastructure across language and repo-size

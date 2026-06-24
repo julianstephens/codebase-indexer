@@ -2,6 +2,10 @@
 
 The following languages are supported via tree-sitter parsers:
 
+All parser packages for the languages below are included as runtime
+dependencies in `codebase-indexer-py`, so standard installs (including pipx)
+work without manual parser setup.
+
 | Language | Extensions |
 |---|---|
 | Python | `.py` `.pyi` |

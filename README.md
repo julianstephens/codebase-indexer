@@ -80,7 +80,7 @@ trace_callers("src.payments.service.charge") # blast radius BFS up the call grap
 
 | Layer | Library |
 |---|---|
-| AST extraction | `tree-sitter` + `tree-sitter-languages` |
+| AST extraction | `tree-sitter` + language-specific parser packages |
 | Database | `sqlite3` stdlib (WAL + FTS5) |
 | Compression | `zstandard` |
 | File discovery | `pathspec` (gitignore syntax) |
@@ -91,7 +91,13 @@ trace_callers("src.payments.service.charge") # blast radius BFS up the call grap
 ## Installation
 
 ```bash
-pip install tree-sitter zstandard pathspec typer
+pip install codebase-indexer-py
+```
+
+Or install as an isolated CLI with pipx:
+
+```bash
+pipx install codebase-indexer-py --python python3.13
 ```
 
 ---

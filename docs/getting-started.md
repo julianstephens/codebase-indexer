@@ -6,6 +6,12 @@
 pip install codebase-indexer-py
 ```
 
+Or install as an isolated CLI via pipx:
+
+```bash
+pipx install codebase-indexer-py --python python3.13
+```
+
 Or install from source:
 
 ```bash
@@ -13,6 +19,10 @@ git clone https://github.com/julianstephens/codebase-indexer-py.git
 cd codebase-indexer-py
 pip install .
 ```
+
+Supported tree-sitter parser packages are installed as runtime dependencies for
+all languages listed in the language reference, so production installs do not
+need separate parser package setup.
 
 ## Index a repository
 
@@ -22,7 +32,7 @@ indexer index /path/to/my-repo
 
 This produces:
 
-```
+```text
 /path/to/my-repo/.codebase-index/
     graph.db.zst       compressed knowledge graph
     artifact.json      metadata (node counts, compression ratio, etc.)
@@ -31,7 +41,7 @@ This produces:
 
 The working database is cached at:
 
-```
+```text
 ~/.cache/codebase-indexer/<project>.db
 ```
 
