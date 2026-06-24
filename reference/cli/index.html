@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://julianstephens.github.io/codebase-indexer/reference/cli/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>CLI - codebase-indexer</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "CLI";
+        var mkdocs_page_input_path = "reference/cli.md";
+        var mkdocs_page_url = "/codebase-indexer/reference/cli/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> codebase-indexer
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../agent-integration/">Agent Integration</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">CLI</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#indexer-index">indexer index</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#indexer-skeleton">indexer skeleton</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#indexer-get-source">indexer get-source</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#indexer-search">indexer search</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../languages/">Supported Languages</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">codebase-indexer</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">CLI</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/julianstephens/codebase-indexer/edit/master/docs/reference/cli.md">Edit on julianstephens/codebase-indexer</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
+<h2 id="indexer-index">indexer index<a class="headerlink" href="#indexer-index" title="Permanent link">&para;</a></h2>
+<p>Index a repository and write the knowledge graph to disk.</p>
+<pre><code>indexer index [REPO_PATH] [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Argument / Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REPO_PATH</code></td>
+<td><code>.</code></td>
+<td>Path to the repository root</td>
+</tr>
+<tr>
+<td><code>--project</code>, <code>-p</code></td>
+<td>dir name</td>
+<td>Project name (used for cache file naming)</td>
+</tr>
+<tr>
+<td><code>--cache-dir</code></td>
+<td><code>~/.cache/repo-indexer</code></td>
+<td>Directory for the working <code>.db</code> file</td>
+</tr>
+<tr>
+<td><code>--workers</code>, <code>-w</code></td>
+<td><code>0</code> (auto)</td>
+<td>Number of parallel workers</td>
+</tr>
+<tr>
+<td><code>--incremental</code> / <code>--no-incremental</code></td>
+<td><code>--incremental</code></td>
+<td>Skip files unchanged since last index</td>
+</tr>
+<tr>
+<td><code>--export</code> / <code>--no-export</code></td>
+<td><code>--export</code></td>
+<td>Write compressed <code>.zst</code> artifact on completion</td>
+</tr>
+<tr>
+<td><code>--verbose</code>, <code>-v</code></td>
+<td>off</td>
+<td>Enable debug logging</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">indexer index /path/to/my-repo --project my-app --workers 8
+</code></pre>
+<hr />
+<h2 id="indexer-skeleton">indexer skeleton<a class="headerlink" href="#indexer-skeleton" title="Permanent link">&para;</a></h2>
+<p>Print a skeleton of the indexed codebase (file headers, imports, and signatures).</p>
+<pre><code>indexer skeleton PROJECT [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Argument / Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROJECT</code></td>
+<td>required</td>
+<td>Project name</td>
+</tr>
+<tr>
+<td><code>--mode</code>, <code>-m</code></td>
+<td>auto</td>
+<td>Rendering mode: <code>skeleton</code>, <code>compact</code>, <code>summary</code>, <code>deps</code></td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td>derived</td>
+<td>Path to the <code>.db</code> file (overrides cache lookup)</td>
+</tr>
+<tr>
+<td><code>--cache-dir</code></td>
+<td><code>~/.cache/repo-indexer</code></td>
+<td>Directory for <code>.db</code> files</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">indexer skeleton my-app --mode compact
+</code></pre>
+<hr />
+<h2 id="indexer-get-source">indexer get-source<a class="headerlink" href="#indexer-get-source" title="Permanent link">&para;</a></h2>
+<p>Fetch the full source of a symbol by its fully-qualified name.</p>
+<pre><code>indexer get-source QUALIFIED_NAME [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Argument / Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QUALIFIED_NAME</code></td>
+<td>required</td>
+<td>FQN of the symbol, e.g. <code>my_app.src.service.charge</code></td>
+</tr>
+<tr>
+<td><code>--project</code>, <code>-p</code></td>
+<td>none</td>
+<td>Project name (required when <code>--db</code> is not given)</td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td>derived</td>
+<td>Path to the <code>.db</code> file</td>
+</tr>
+<tr>
+<td><code>--cache-dir</code></td>
+<td><code>~/.cache/repo-indexer</code></td>
+<td>Directory for <code>.db</code> files</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">indexer get-source &quot;src.payments.service.charge&quot; --project my-app
+</code></pre>
+<hr />
+<h2 id="indexer-search">indexer search<a class="headerlink" href="#indexer-search" title="Permanent link">&para;</a></h2>
+<p>Full-text search across node names, signatures, and source.</p>
+<pre><code>indexer search QUERY [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Argument / Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QUERY</code></td>
+<td>required</td>
+<td>Full-text search query</td>
+</tr>
+<tr>
+<td><code>--project</code>, <code>-p</code></td>
+<td>none</td>
+<td>Filter results to a specific project</td>
+</tr>
+<tr>
+<td><code>--label</code>, <code>-l</code></td>
+<td>none</td>
+<td>Filter by node type: <code>Function</code>, <code>Class</code>, <code>Method</code>, <code>Interface</code>, <code>Type</code></td>
+</tr>
+<tr>
+<td><code>--file</code>, <code>-f</code></td>
+<td>none</td>
+<td>SQL <code>LIKE</code> pattern for file path, e.g. <code>src/payments/%</code></td>
+</tr>
+<tr>
+<td><code>--limit</code>, <code>-n</code></td>
+<td><code>20</code></td>
+<td>Maximum number of results to return</td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td>derived</td>
+<td>Path to the <code>.db</code> file</td>
+</tr>
+<tr>
+<td><code>--cache-dir</code></td>
+<td><code>~/.cache/repo-indexer</code></td>
+<td>Directory for <code>.db</code> files</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">indexer search &quot;authentication&quot; --project my-app --label Function --limit 10
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../agent-integration/" class="btn btn-neutral float-left" title="Agent Integration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../languages/" class="btn btn-neutral float-right" title="Supported Languages">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/julianstephens/codebase-indexer" class="fa fa-code-fork" style="color: #fcfcfc"> julianstephens/codebase-indexer</a>
+        </span>
+    
+    
+      <span><a href="../../agent-integration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../languages/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

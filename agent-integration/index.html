@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://julianstephens.github.io/codebase-indexer/agent-integration/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Agent Integration - codebase-indexer</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Agent Integration";
+        var mkdocs_page_input_path = "agent-integration.md";
+        var mkdocs_page_url = "/codebase-indexer/agent-integration/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> codebase-indexer
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Agent Integration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#session-setup">Session setup</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#tools">Tools</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get_source">get_source</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#search">search</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#trace_callers">trace_callers</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#skeleton-example">Skeleton example</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">CLI</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/languages/">Supported Languages</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">codebase-indexer</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Agent Integration</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/julianstephens/codebase-indexer/edit/master/docs/agent-integration.md">Edit on julianstephens/codebase-indexer</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="agent-integration">Agent Integration<a class="headerlink" href="#agent-integration" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Attach <code>codebase-indexer</code> to an agent session by building a skeleton string at startup, then registering three tools the agent can call on demand.</p>
+<h2 id="session-setup">Session setup<a class="headerlink" href="#session-setup" title="Permanent link">&para;</a></h2>
+<pre><code class="language-python">from indexer.context import build_context
+from indexer.tools import get_source, search, trace_callers
+
+db_path = &quot;~/.cache/repo-indexer/my-app.db&quot;
+
+# Build the skeleton (auto-selects rendering mode by token budget)
+skeleton = build_context(db_path, project=&quot;my-app&quot;, token_budget=8_000)
+
+messages = [
+    {
+        &quot;role&quot;: &quot;system&quot;,
+        &quot;content&quot;: (
+            &quot;You are a software engineer working on this codebase.\n&quot;
+            &quot;Use get_source(qn) to read function bodies, search(query) to find\n&quot;
+            &quot;relevant code, and trace_callers(qn) to understand what depends on\n&quot;
+            &quot;a given function before making changes.\n\n&quot;
+            f&quot;Repository skeleton:\n\n{skeleton}&quot;
+        ),
+    }
+]
+
+# Register the three tools with your agent framework and pass `messages`.
+</code></pre>
+<h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
+<h3 id="get_source">get_source<a class="headerlink" href="#get_source" title="Permanent link">&para;</a></h3>
+<p>Returns the full source of a node, along with its direct callers and callees.</p>
+<pre><code class="language-python">result = get_source(db_path, &quot;src.payments.service.charge&quot;)
+</code></pre>
+<h3 id="search">search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h3>
+<p>Full-text search across node names, signatures, and source using SQLite FTS5.</p>
+<pre><code class="language-python">results = search(db_path, &quot;sql injection&quot;)
+</code></pre>
+<h3 id="trace_callers">trace_callers<a class="headerlink" href="#trace_callers" title="Permanent link">&para;</a></h3>
+<p>Breadth-first search up the call graph to find everything that depends on a given node.</p>
+<pre><code class="language-python">callers = trace_callers(db_path, &quot;src.payments.service.charge&quot;, depth=3)
+</code></pre>
+<h2 id="skeleton-example">Skeleton example<a class="headerlink" href="#skeleton-example" title="Permanent link">&para;</a></h2>
+<p>At session start the agent receives a skeleton -- every file header, import list, and signature in the repo, grouped by file:</p>
+<pre><code class="language-txt"># my-app -- 42 files, 312 nodes  [skeleton]
+# schema: Class=18 File=12 Function=156 Method=98 Interface=8 Type=20
+
+### src/payments/service.py
+# imports: stripe, src.payments.models, src.auth.models
+def charge(user: User, amount_cents: int, currency: str) -&gt; Payment:  # src.payments.service.charge
+def refund(payment: Payment) -&gt; bool:  # src.payments.service.refund
+
+### src/payments/models.py
+class Payment(BaseModel):  # src.payments.models.Payment
+    def save(self) -&gt; None:  # src.payments.models.Payment.save
+    def to_dict(self) -&gt; dict:  # src.payments.models.Payment.to_dict
+</code></pre>
+<p>Each line ends with a comment containing the fully-qualified name (FQN). The agent passes this FQN to <code>get_source()</code> to retrieve the full body.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../configuration/" class="btn btn-neutral float-left" title="Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../reference/cli/" class="btn btn-neutral float-right" title="CLI">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/julianstephens/codebase-indexer" class="fa fa-code-fork" style="color: #fcfcfc"> julianstephens/codebase-indexer</a>
+        </span>
+    
+    
+      <span><a href="../configuration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../reference/cli/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

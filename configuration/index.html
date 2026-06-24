@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://julianstephens.github.io/codebase-indexer/configuration/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Configuration - codebase-indexer</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Configuration";
+        var mkdocs_page_input_path = "configuration.md";
+        var mkdocs_page_url = "/codebase-indexer/configuration/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> codebase-indexer
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Configuration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#pipelineconfig">PipelineConfig</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pipelineconfig-fields">PipelineConfig fields</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#walkconfig-fields">WalkConfig fields</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#cbmignore">.cbmignore</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#token-budget-and-rendering-modes">Token budget and rendering modes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#artifact-compression">Artifact compression</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agent-integration/">Agent Integration</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">CLI</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/languages/">Supported Languages</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">codebase-indexer</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Configuration</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/julianstephens/codebase-indexer/edit/master/docs/configuration.md">Edit on julianstephens/codebase-indexer</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
+<h2 id="pipelineconfig">PipelineConfig<a class="headerlink" href="#pipelineconfig" title="Permanent link">&para;</a></h2>
+<p>All indexing behaviour is controlled through <code>PipelineConfig</code>:</p>
+<pre><code class="language-python">from indexer.pipeline import PipelineConfig
+from indexer.walker import WalkConfig
+
+config = PipelineConfig(
+    project=&quot;my-app&quot;,               # default: derived from repo dir name
+    cache_dir=&quot;~/.cache/repo-indexer&quot;,
+    artifact_dir=&quot;/repo/.repo-index&quot;,
+    max_workers=8,                  # parallel read/extract/resolve threads
+    walk_config=WalkConfig(
+        max_file_bytes=2 * 1024 * 1024,
+        include_unknown_extensions=True,
+        extra_ignore_patterns=[&quot;*.generated.ts&quot;, &quot;migrations/&quot;],
+        follow_gitignore=True,
+    ),
+    min_confidence=0.0,             # minimum edge confidence to store
+    incremental=True,               # skip unchanged files
+    export_artifact=True,
+    artifact_compression_level=9,   # zstd level 1-22
+    verbose=False,
+)
+</code></pre>
+<h3 id="pipelineconfig-fields">PipelineConfig fields<a class="headerlink" href="#pipelineconfig-fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>project</code></td>
+<td><code>str</code></td>
+<td>dir name</td>
+<td>Project name used for cache file naming</td>
+</tr>
+<tr>
+<td><code>cache_dir</code></td>
+<td><code>str</code></td>
+<td><code>~/.cache/repo-indexer</code></td>
+<td>Directory for the working <code>.db</code> file</td>
+</tr>
+<tr>
+<td><code>artifact_dir</code></td>
+<td><code>str</code></td>
+<td><code>&lt;repo&gt;/.repo-index</code></td>
+<td>Directory for the exported artifact</td>
+</tr>
+<tr>
+<td><code>max_workers</code></td>
+<td><code>int</code></td>
+<td><code>4</code></td>
+<td>Number of parallel worker threads</td>
+</tr>
+<tr>
+<td><code>min_confidence</code></td>
+<td><code>float</code></td>
+<td><code>0.0</code></td>
+<td>Minimum call-edge confidence score</td>
+</tr>
+<tr>
+<td><code>incremental</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Skip files unchanged since last index</td>
+</tr>
+<tr>
+<td><code>export_artifact</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Write compressed <code>.db.zst</code> on completion</td>
+</tr>
+<tr>
+<td><code>artifact_compression_level</code></td>
+<td><code>int</code></td>
+<td><code>9</code></td>
+<td>zstd compression level (1 = fast, 22 = best)</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Log per-file progress</td>
+</tr>
+<tr>
+<td><code>walk_config</code></td>
+<td><code>WalkConfig</code></td>
+<td>see below</td>
+<td>File discovery settings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="walkconfig-fields">WalkConfig fields<a class="headerlink" href="#walkconfig-fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_file_bytes</code></td>
+<td><code>int</code></td>
+<td><code>1_048_576</code></td>
+<td>Skip files larger than this</td>
+</tr>
+<tr>
+<td><code>include_unknown_extensions</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Index files with unrecognised extensions as <code>File</code> nodes</td>
+</tr>
+<tr>
+<td><code>extra_ignore_patterns</code></td>
+<td><code>list[str]</code></td>
+<td><code>[]</code></td>
+<td>Additional gitignore-style patterns</td>
+</tr>
+<tr>
+<td><code>follow_gitignore</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Respect <code>.gitignore</code> at the repo root</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cbmignore">.cbmignore<a class="headerlink" href="#cbmignore" title="Permanent link">&para;</a></h2>
+<p>Place a <code>.cbmignore</code> file at the repo root to add project-specific ignore rules on top of <code>.gitignore</code>. It uses the same gitignore syntax:</p>
+<pre><code class="language-gitignore"># .cbmignore
+migrations/
+*.pb.go
+*_generated.py
+fixtures/
+</code></pre>
+<h2 id="token-budget-and-rendering-modes">Token budget and rendering modes<a class="headerlink" href="#token-budget-and-rendering-modes" title="Permanent link">&para;</a></h2>
+<p><code>build_context()</code> automatically selects a rendering mode based on the estimated token count of the full skeleton versus your budget:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>When used</th>
+<th>Approximate token cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skeleton</code></td>
+<td>Full skeleton fits in budget</td>
+<td>100%</td>
+</tr>
+<tr>
+<td><code>compact</code></td>
+<td>Up to 2x over budget</td>
+<td>~60% of skeleton</td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>Up to 10x over budget</td>
+<td>~10% of skeleton</td>
+</tr>
+<tr>
+<td><code>deps</code></td>
+<td>Over 10x budget</td>
+<td>Minimal</td>
+</tr>
+</tbody>
+</table>
+<p>Override the mode explicitly if needed:</p>
+<pre><code class="language-python">from indexer.context import build_context
+
+ctx = build_context(db_path, &quot;my-app&quot;, mode=&quot;compact&quot;)
+</code></pre>
+<h2 id="artifact-compression">Artifact compression<a class="headerlink" href="#artifact-compression" title="Permanent link">&para;</a></h2>
+<p>Typical compression ratios for real repositories:</p>
+<table>
+<thead>
+<tr>
+<th>Repo type</th>
+<th>Uncompressed</th>
+<th>Compressed</th>
+<th>Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Small Python app (50 files)</td>
+<td>2 MB</td>
+<td>200 KB</td>
+<td>10x</td>
+</tr>
+<tr>
+<td>Medium TypeScript monorepo (400 files)</td>
+<td>18 MB</td>
+<td>1.4 MB</td>
+<td>13x</td>
+</tr>
+<tr>
+<td>Large Go service (1200 files)</td>
+<td>65 MB</td>
+<td>5 MB</td>
+<td>13x</td>
+</tr>
+</tbody>
+</table>
+<p>The artifact is safe to commit alongside the repository. The <code>.gitattributes</code> file written by <code>export()</code> marks it <code>binary merge=ours</code> so git never produces merge conflicts on it.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../getting-started/" class="btn btn-neutral float-left" title="Getting Started"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../agent-integration/" class="btn btn-neutral float-right" title="Agent Integration">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/julianstephens/codebase-indexer" class="fa fa-code-fork" style="color: #fcfcfc"> julianstephens/codebase-indexer</a>
+        </span>
+    
+    
+      <span><a href="../getting-started/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../agent-integration/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
