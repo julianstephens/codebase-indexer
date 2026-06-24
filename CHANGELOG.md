@@ -19,6 +19,7 @@
   and normalized import handling behavior
 - Clarified CLI output by reporting unrecognized file types explicitly
   instead of displaying `Relationship unavailable: unknown`
+- Fixes bug where `--incremental` indexing would overwrite the existing database instead of preserving unchanged nodes and edges
 
 ## v1.0.3
 
