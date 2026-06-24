@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Optional
 
 import typer
 from rich import print
+from rich.console import Console
 from typer import Argument, Option, Typer
 
 from indexer import context, pipeline
@@ -139,7 +140,8 @@ def skeleton(
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
-    print(text)
+    console = Console()
+    console.print(text, markup=False, highlight=False)
 
 
 @app.command(

@@ -338,10 +338,10 @@ def _render_skeleton(
             if entry.label == "Class":
                 classes_seen.add(entry.qn.split(".")[-1])
                 parts.append(f"{entry.signature}  # {entry.qn}")
-            elif entry.label in ("Method",) and entry.parent:
-                parts.append(f"{METHOD_INDENT}{entry.signature}  # {entry.qn}")
             elif entry.label == "File":
-                parts.append(f"# {entry.signature}")
+                parts.append(entry.signature)
+            elif entry.parent:
+                parts.append(f"{METHOD_INDENT}{entry.signature}  # {entry.qn}")
             else:
                 parts.append(f"{entry.signature}  # {entry.qn}")
 
@@ -617,6 +617,11 @@ def _load_file_nodes(
     )
     for node in result.rows:
         if node.file_path not in file_map:
+            # Skip files with no recognised language (dotfiles, config
+            # files, etc.) — they add noise without aiding code navigation.
+            props = node.properties or {}
+            if props.get("reason") == "no_language":
+                continue
             block = _FileBlock(path=node.file_path)
             block.entries.append(
                 _SkeletonEntry(

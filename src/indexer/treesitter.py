@@ -858,6 +858,13 @@ def _find_body_start(node: Node) -> int | None:
     for child in node.children:
         if child.type in _BODY_OPENERS:
             return child.start_point[0]
+    # Fall back to grandchildren: handles wrapper nodes like
+    # decorated_definition where the block is a child of the inner
+    # class_definition / function_definition, not the wrapper itself.
+    for child in node.children:
+        for grandchild in child.children:
+            if grandchild.type in _BODY_OPENERS:
+                return grandchild.start_point[0]
     return None
 
 
