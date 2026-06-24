@@ -55,6 +55,7 @@ from .extractor import (
 from .fqn import compute, from_path, module
 from .registry import (
     CallSite,
+    Import,
     Registry,
     ResolutionContext,
     build,
@@ -278,7 +279,14 @@ def run(
         reg = _pass_build_registry(records)
 
         # Pass 6: Resolve calls
-        edges = _pass_resolve_calls(extraction_results, reg, config.project, config)
+        edges, calls_resolved, calls_unresolved = _pass_resolve_calls(
+            extraction_results,
+            reg,
+            config.project,
+            config,
+        )
+        result.calls_resolved = calls_resolved
+        result.calls_unresolved = calls_unresolved
 
         # Collect file contents + hashes
         file_contents = _collect_file_contents(file_infos, extraction_results)
@@ -584,17 +592,15 @@ def _pass_resolve_calls(
     reg: Registry,
     project: str,
     config: PipelineConfig,
-) -> list[tuple[str, str, str, dict]]:
+) -> tuple[list[tuple[str, str, str, dict]], int, int]:
     """
     Pass 6: Resolve call sites to edges in parallel.
 
-    For each file in results:
-      1. Builds a ResolutionContext with module_qn and imports parsed
-         from the file's NodeRecords (Import nodes in properties, or
-         by re-reading import lines from the source).
-      2. Builds a list of CallSite objects from the source (currently
-         a placeholder — full call extraction requires the extractor to
-         emit CallSite objects, which is a v2 feature).
+     For each file in results:
+        1. Builds a ResolutionContext with module_qn and imports parsed
+            from NodeRecord.properties["imports"].
+        2. Builds a list of CallSite objects from
+            NodeRecord.properties["calls"].
       3. Calls reg.resolve_all(calls, ctx).
       4. Filters resolutions below config.min_confidence.
       5. Yields (source_qn, target_qn, "CALLS", properties) tuples.
@@ -610,27 +616,38 @@ def _pass_resolve_calls(
         config:  resolved PipelineConfig (for min_confidence, max_workers)
 
     Returns:
-        List of (source_qn, target_qn, edge_type, properties) tuples
-        ready for store.insert_edges().
+        (edges, calls_resolved, calls_unresolved) where:
+          - edges is a list of (source_qn, target_qn, edge_type, properties)
+            tuples ready for store.insert_edges().
+          - calls_resolved is the count of call sites with a resolved target.
+          - calls_unresolved is the count of call sites that could not be
+            resolved.
     """
     all_edges: list[tuple[str, str, str, dict]] = []
+    calls_resolved = 0
+    calls_unresolved = 0
     items = list(results.items())
     total = len(items)
 
     def _resolve_file(
-        path: str, _result: ExtractionResult
-    ) -> list[tuple[str, str, str, dict]]:
+        path: str, result: ExtractionResult
+    ) -> tuple[list[tuple[str, str, str, dict]], int, int]:
+        imports = _collect_imports_from_records(result.records)
+        calls = _collect_calls_from_records(result.records)
         ctx = ResolutionContext(
             file_path=path,
             module_qn=module(path),
-            # v1: imports and call sites are not yet emitted by the extractor.
-            # v2 will populate these from NodeRecord.properties.
-            imports=[],
+            imports=imports,
             project=project,
         )
-        calls: list[CallSite] = []
         edges: list[tuple[str, str, str, dict]] = []
+        resolved_count = 0
+        unresolved_count = 0
         for res in reg.resolve_all(calls, ctx):
+            if res.target_qn:
+                resolved_count += 1
+            else:
+                unresolved_count += 1
             if not res.target_qn or res.confidence < config.min_confidence:
                 continue
             edges.append(
@@ -645,17 +662,193 @@ def _pass_resolve_calls(
                     },
                 )
             )
-        return edges
+        return edges, resolved_count, unresolved_count
 
     with ThreadPoolExecutor(max_workers=config.max_workers) as pool:
         futures = {
             pool.submit(_resolve_file, path, result): path for path, result in items
         }
         for done, future in enumerate(as_completed(futures), 1):
-            all_edges.extend(future.result())
+            edges, resolved_count, unresolved_count = future.result()
+            all_edges.extend(edges)
+            calls_resolved += resolved_count
+            calls_unresolved += unresolved_count
             _progress(config, "resolve", done, total)
 
-    return all_edges
+    return all_edges, calls_resolved, calls_unresolved
+
+
+def _collect_imports_from_records(records: list[NodeRecord]) -> list[Import]:
+    """
+    Collect Import objects from NodeRecord.properties["imports"].
+
+    Accepts multiple v2-compatible shapes:
+      - "imports": "src.payments.service"
+      - "imports": ["src.payments.service", {...}]
+      - "imports": {"module_path": "src.payments", "names": ["service"]}
+
+    Invalid entries are ignored.
+    """
+    collected: list[Import] = []
+    seen: set[tuple[str, tuple[str, ...], str, int]] = set()
+
+    for record in records:
+        raw_imports = record.properties.get("imports")
+        if raw_imports is None:
+            continue
+
+        parsed_items = _parse_import_items(raw_imports)
+        for imp in parsed_items:
+            key = (imp.module_path, tuple(imp.names), imp.alias, imp.line)
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(imp)
+
+    return collected
+
+
+def _parse_import_items(raw_imports: object) -> list[Import]:
+    """Parse raw import payload(s) into Import objects."""
+    if isinstance(raw_imports, (str, dict)):
+        raw_items = [raw_imports]
+    elif isinstance(raw_imports, list):
+        raw_items = raw_imports
+    else:
+        return []
+
+    imports: list[Import] = []
+    for item in raw_items:
+        if isinstance(item, str):
+            module_path = item.strip()
+            if module_path:
+                imports.append(Import(module_path=module_path))
+            continue
+
+        if not isinstance(item, dict):
+            continue
+
+        module_path_obj = (
+            item.get("module_path")
+            or item.get("module")
+            or item.get("path")
+            or item.get("import")
+        )
+        if not isinstance(module_path_obj, str):
+            continue
+        module_path = module_path_obj.strip()
+        if not module_path:
+            continue
+
+        names_raw = item.get("names")
+        names: list[str] = []
+        if isinstance(names_raw, list):
+            names = [name.strip() for name in names_raw if isinstance(name, str)]
+        elif isinstance(names_raw, str):
+            names = [name.strip() for name in names_raw.split(",") if name.strip()]
+
+        alias_raw = item.get("alias") or item.get("as")
+        alias = alias_raw.strip() if isinstance(alias_raw, str) else ""
+
+        line_raw = item.get("line", 0)
+        line = line_raw if isinstance(line_raw, int) else 0
+
+        imports.append(
+            Import(
+                module_path=module_path,
+                names=names,
+                alias=alias,
+                line=line,
+            )
+        )
+
+    return imports
+
+
+def _collect_calls_from_records(records: list[NodeRecord]) -> list[CallSite]:
+    """
+    Collect CallSite objects from NodeRecord.properties call payloads.
+
+    v2 payloads may use "calls" or "call_sites" and can be strings,
+    dicts, or lists of either.
+    """
+    collected: list[CallSite] = []
+    seen: set[tuple[str, int, str, str]] = set()
+
+    for record in records:
+        raw_calls = record.properties.get("calls")
+        if raw_calls is None:
+            raw_calls = record.properties.get("call_sites")
+        if raw_calls is None:
+            continue
+
+        default_in_function = record.qualified_name
+        parsed_items = _parse_call_items(raw_calls, default_in_function)
+        for call in parsed_items:
+            key = (call.callee, call.line, call.qualifier, call.in_function)
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(call)
+
+    return collected
+
+
+def _parse_call_items(raw_calls: object, default_in_function: str) -> list[CallSite]:
+    """Parse raw call payload(s) into CallSite objects."""
+    if isinstance(raw_calls, (str, dict)):
+        raw_items = [raw_calls]
+    elif isinstance(raw_calls, list):
+        raw_items = raw_calls
+    else:
+        return []
+
+    calls: list[CallSite] = []
+    for item in raw_items:
+        if isinstance(item, str):
+            callee = item.strip()
+            if callee:
+                calls.append(
+                    CallSite(
+                        callee=callee,
+                        line=0,
+                        in_function=default_in_function,
+                    )
+                )
+            continue
+
+        if not isinstance(item, dict):
+            continue
+
+        callee_raw = item.get("callee") or item.get("name") or item.get("target")
+        if not isinstance(callee_raw, str):
+            continue
+        callee = callee_raw.strip()
+        if not callee:
+            continue
+
+        qualifier_raw = item.get("qualifier") or item.get("qual")
+        qualifier = qualifier_raw.strip() if isinstance(qualifier_raw, str) else ""
+
+        in_function_raw = item.get("in_function") or item.get("source_qn")
+        if isinstance(in_function_raw, str) and in_function_raw.strip():
+            in_function = in_function_raw.strip()
+        else:
+            in_function = default_in_function
+
+        line_raw = item.get("line", 0)
+        line = line_raw if isinstance(line_raw, int) else 0
+
+        calls.append(
+            CallSite(
+                callee=callee,
+                line=line,
+                qualifier=qualifier,
+                in_function=in_function,
+            )
+        )
+
+    return calls
 
 
 def _pass_store(
