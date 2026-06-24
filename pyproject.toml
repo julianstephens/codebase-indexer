@@ -1,6 +1,6 @@
 [project]
 name = "codebase-indexer"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.13"
 dependencies = [
     "pathspec>=1.1.1",
@@ -11,6 +11,10 @@ dependencies = [
 
 [project.scripts]
 indexer = "cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/julianstephens/codebase-indexer"
+Issues = "https://github.com/julianstephens/codebase-indexer/issues"
 
 [tool.uv.build-backend]
 module-name = ["indexer"]
