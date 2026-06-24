@@ -1,0 +1,57 @@
+[project]
+name = "codebase-indexer"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "pathspec>=1.1.1",
+    "tree-sitter>=0.25.2",
+    "typer>=0.26.7",
+    "zstandard>=0.25.0",
+]
+
+[project.scripts]
+indexer = "cli.main:app"
+
+[tool.uv.build-backend]
+module-name = ["indexer"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = ["B", "LOG", "Q", "RET", "SIM", "ARG", "I", "N", "E", "W", "F", "RUF", "TRY"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/indexer/schema.py" = ["E501"]
+"src/indexer/treesitter.py" = ["ARG001"]
+
+[tool.pytest.ini_options]
+addopts = "-n=auto"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "tree-sitter-bash>=0.25.1",
+    "tree-sitter-c>=0.24.2",
+    "tree-sitter-c-sharp>=0.23.5",
+    "tree-sitter-cpp>=0.23.4",
+    "tree-sitter-elixir>=0.3.5",
+    "tree-sitter-go>=0.25.0",
+    "tree-sitter-java>=0.23.5",
+    "tree-sitter-javascript>=0.25.0",
+    "tree-sitter-kotlin>=1.1.0",
+    "tree-sitter-lua>=0.5.0",
+    "tree-sitter-php>=0.24.1",
+    "tree-sitter-python>=0.25.0",
+    "tree-sitter-ruby>=0.23.1",
+    "tree-sitter-rust>=0.24.2",
+    "tree-sitter-scala>=0.26.0",
+    "tree-sitter-swift>=0.7.3",
+    "tree-sitter-typescript>=0.23.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"

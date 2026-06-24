@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "schema_version": 1,
+  "project": "codebase-indexer",
+  "exported_at": "2026-06-24T07:37:35+00:00",
+  "compression_level": 9,
+  "uncompressed_bytes": 2555904,
+  "compressed_bytes": 396115,
+  "compression_ratio": 6.45,
+  "node_count": 871,
+  "edge_count": 0,
+  "file_count": 33,
+  "language_counts": {
+    "python": 21
+  },
+  "indexer_version": ""
+}
