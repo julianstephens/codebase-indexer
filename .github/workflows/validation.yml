@@ -26,7 +26,7 @@ jobs:
       - name: Lint code
         id: lint-code
         run: |
-          if ! LINT_OUTPUT="$(uvx ruff check 2>&1)"; then
+          if ! LINT_OUTPUT="$(uv run ruff check 2>&1)"; then
             EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
             {
               echo "LINT<<$EOF"
@@ -82,11 +82,10 @@ jobs:
 
             if (changed) {
               msg += `[View full logs](${process.env.JOB_URL})`;
-              github.rest.issues.createComment({
+              await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: msg
-              })
-              process.exit(1); 
+              });
             }
