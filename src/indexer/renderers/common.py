@@ -1,5 +1,5 @@
 """
-_common.py — Shared helpers for structured query result renderers.
+common.py — Shared helpers for structured query result renderers.
 
 Contains formatting and truncation helpers used by both human-readable and
 JSON-compatible renderers. No helper in this module accesses the graph store.

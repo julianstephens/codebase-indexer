@@ -41,12 +41,13 @@ Token awareness:
 import logging
 from pathlib import Path
 
-from indexer.queries.callers import query_callers
-from indexer.queries.models import SearchQueryResult
-from indexer.queries.search import query_search
-from indexer.queries.source import query_source
-from indexer.renderers import render_node_not_found, render_trace_text
-from indexer.renderers.text import render_search_text, render_source_text
+from indexer.queries import SearchQueryResult, query_callers, query_search, query_source
+from indexer.renderers import (
+    render_node_not_found,
+    render_search_text,
+    render_source_text,
+    render_trace_text,
+)
 
 from .store import open_path_readonly
 
@@ -63,9 +64,6 @@ MAX_SOURCE_BYTES: int = 32_768  # 32 KB
 
 # Maximum number of caller/callee QNs shown in get_source() output.
 MAX_RELATED_SHOWN: int = 20
-
-# Separator line used between sections in tool output.
-_SEP: str = "─" * 60
 
 
 # ---------------------------------------------------------------------------

@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 class IndexerError(Exception):
     """Base class for all indexer errors."""
 
@@ -169,4 +172,126 @@ class SearchQueryError(QueryError):
         self.query = query
         if message is None:
             message = f"Search query failed: {query}"
+        super().__init__(message)
+
+
+class EvaluationError(IndexerError):
+    """Raised when there is an error with evaluation."""
+
+    pass
+
+
+class EvaluationSerializationError(EvaluationError):
+    """Raised when an evaluation record cannot be serialized or parsed."""
+
+    def __init__(self, message: str | None = None):
+        if message is None:
+            message = "Evaluation serialization error"
+        super().__init__(message)
+
+
+class UnsupportedTrajectoryEventError(EvaluationError):
+    """Raised when an unsupported trajectory event is encountered."""
+
+    def __init__(self, event_type: str):
+        self.event_type = event_type
+        message = f"Unsupported trajectory event type: {event_type}"
+        super().__init__(message)
+
+
+class TokenizationError(EvaluationError):
+    """Raised when there is an error during tokenization."""
+
+    def __init__(self, message: str | None = None):
+        if message is None:
+            message = "Tokenization error"
+        super().__init__(message)
+
+
+class InvalidHeuristicError(TokenizationError):
+    """Raised when the heuristic token counter is configured with invalid parameters."""
+
+    def __init__(self, message: str | None = None):
+        if message is None:
+            message = "Invalid heuristic token counter configuration"
+        super().__init__(message)
+
+
+class EvaluationReportingError(EvaluationError):
+    """Raised when there is an error during reporting."""
+
+    def __init__(self, message: str | None = None):
+        if message is None:
+            message = "Reporting error"
+        super().__init__(message)
+
+
+class DuplicateToolCallError(EvaluationReportingError):
+    """Raised when multiple ToolCall records use the same call ID."""
+
+    def __init__(self, call_id: str):
+        self.call_id = call_id
+        super().__init__(f"Duplicate tool call ID: {call_id}")
+
+
+class UnknownDeliveryCallError(EvaluationReportingError):
+    """Raised when a delivery references a missing ToolCall."""
+
+    def __init__(self, call_id: str):
+        self.call_id = call_id
+        super().__init__(f"Context delivery references unknown tool call: {call_id}")
+
+
+class MixedTokenCounterError(EvaluationReportingError):
+    """Raised when deliveries from different token counters are combined."""
+
+    def __init__(self, counter_names: set[str]):
+        self.counter_names = frozenset(counter_names)
+        counters = ", ".join(sorted(counter_names))
+        super().__init__(f"Scenario contains multiple token counters: {counters}")
+
+
+class RepositoryPreparationError(EvaluationError):
+    pass
+
+
+class RevisionMismatchError(RepositoryPreparationError):
+    pass
+
+
+class RepositoryPathError(RepositoryPreparationError):
+    pass
+
+
+class CorpusError(EvaluationError):
+    """Raised when a benchmark corpus definition is invalid."""
+
+
+class CorpusFileError(CorpusError):
+    """Raised when a corpus manifest cannot be read or decoded."""
+
+    def __init__(self, path: str | Path, message: str | None = None):
+        self.path = str(path)
+        if message is None:
+            message = f"Corpus file error: {path}"
+        super().__init__(message)
+
+
+class InvalidRepositorySpecError(CorpusError):
+    """Raised when a repository specification is invalid."""
+
+    def __init__(self, spec: str | Path, message: str | None = None):
+        self.spec = str(spec)
+        if message is None:
+            message = f"Invalid repository specification: {spec}"
+        super().__init__(message)
+
+
+class InvalidBenchmarkTaskError(CorpusError):
+    """Raised when a benchmark task is invalid."""
+
+    def __init__(self, task: str | Path, message: str | None = None):
+        self.task = str(task)
+        if message is None:
+            message = f"Invalid benchmark task: {task}"
         super().__init__(message)
