@@ -81,4 +81,5 @@ jobs:
                 repo: context.repo.repo,
                 body: msg
               })
+              exit(1); 
             }
