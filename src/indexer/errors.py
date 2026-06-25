@@ -212,3 +212,37 @@ class InvalidHeuristicError(TokenizationError):
         if message is None:
             message = "Invalid heuristic token counter configuration"
         super().__init__(message)
+
+
+class EvaluationReportingError(EvaluationError):
+    """Raised when there is an error during reporting."""
+
+    def __init__(self, message: str | None = None):
+        if message is None:
+            message = "Reporting error"
+        super().__init__(message)
+
+
+class DuplicateToolCallError(EvaluationReportingError):
+    """Raised when multiple ToolCall records use the same call ID."""
+
+    def __init__(self, call_id: str):
+        self.call_id = call_id
+        super().__init__(f"Duplicate tool call ID: {call_id}")
+
+
+class UnknownDeliveryCallError(EvaluationReportingError):
+    """Raised when a delivery references a missing ToolCall."""
+
+    def __init__(self, call_id: str):
+        self.call_id = call_id
+        super().__init__(f"Context delivery references unknown tool call: {call_id}")
+
+
+class MixedTokenCounterError(EvaluationReportingError):
+    """Raised when deliveries from different token counters are combined."""
+
+    def __init__(self, counter_names: set[str]):
+        self.counter_names = frozenset(counter_names)
+        counters = ", ".join(sorted(counter_names))
+        super().__init__(f"Scenario contains multiple token counters: {counters}")

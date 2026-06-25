@@ -12,6 +12,14 @@ from .models import (
     ToolStatus,
     TrajectoryEvent,
 )
+from .reporting import (
+    TokenSummary,
+    ToolSummary,
+    render_summary_text,
+    summarize_result,
+    summary_to_dict,
+    tool_summary_to_dict,
+)
 from .serialization import (
     append_delivery,
     append_event,
@@ -43,9 +51,11 @@ __all__ = [
     "JsonValue",
     "ModelUsage",
     "TokenLedger",
+    "TokenSummary",
     "ToolCall",
     "ToolResult",
     "ToolStatus",
+    "ToolSummary",
     "TrajectoryEvent",
     "append_delivery",
     "append_event",
@@ -63,6 +73,10 @@ __all__ = [
     "read_deliveries",
     "read_events",
     "read_metadata",
+    "render_summary_text",
+    "summarize_result",
+    "summary_to_dict",
+    "tool_summary_to_dict",
     "write_deliveries",
     "write_events",
     "write_metadata",
