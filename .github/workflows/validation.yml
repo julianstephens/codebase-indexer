@@ -25,28 +25,38 @@ jobs:
 
       - name: Lint code
         id: lint-code
-        continue-on-error: true
         run: |
-          output=$(uvx ruff check)
+          LINT_OUTPUT="$(uvx ruff check 2>&1)"
           exit_code=$?
-          if [ $exit_code -ne 0 ]; then
-            echo "LINT=$(echo "$output" | sed 's/"/\\"/g')" >> $GITHUB_OUTPUT
+          if [[ $exit_code -ne 0 ]]; then
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            {
+              echo "LINT<<$EOF"
+              echo "$LINT_OUTPUT"
+              echo "$EOF"
+            } >> "$GITHUB_OUTPUT"
             exit $exit_code
           fi
 
       - name: Run tests
         id: run-tests
-        continue-on-error: true
+        if: success() || failure()
         run: |
-          output=$(uv run pytest tests)
+          output="$(uv run pytest tests 2>&1)"
           exit_code=$?
-          if [ $exit_code -ne 0 ]; then
-            echo "TESTS=$(echo "$output" | sed 's/"/\\"/g')" >> $GITHUB_OUTPUT
+          if [[ $exit_code -ne 0 ]]; then
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            {
+              echo "TESTS<<$EOF"
+              echo "$output"
+              echo "$EOF"
+            } >> "$GITHUB_OUTPUT"
             exit $exit_code
           fi
 
       - name: Get Job Link
         id: get-link
+        if: success() || failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,7 +65,7 @@ jobs:
           echo "URL=$JOB_URL" >> "$GITHUB_OUTPUT"
 
       - name: Failure PR comment
-        if: always()
+        if: success() || failure()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           LINT_OUTPUT: ${{ steps.lint-code.outputs.LINT }}
