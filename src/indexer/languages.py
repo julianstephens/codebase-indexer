@@ -339,6 +339,12 @@ LANG_CONFIG: dict[str, dict] = {
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "detect_language",
+    "supported_extensions",
+    "supported_languages",
+]
+
 
 def detect_language(path: str) -> str | None:
     """

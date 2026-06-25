@@ -130,6 +130,13 @@ class ExtractionResult:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "ExtractionResult",
+    "FileInfo",
+    "extract_file",
+    "extract_files",
+]
+
 
 def extract_file(path: str, source: str) -> list[NodeRecord]:
     """

@@ -46,6 +46,14 @@ from .treesitter import NodeRecord
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "CallSite",
+    "Import",
+    "Registry",
+    "Resolution",
+    "build",
+]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

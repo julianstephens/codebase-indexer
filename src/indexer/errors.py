@@ -154,3 +154,19 @@ class InvalidContextError(ContextError):
         if message is None:
             message = "Invalid context"
         super().__init__(message)
+
+
+class QueryError(IndexerError):
+    """Raised when there is an error with a query."""
+
+    pass
+
+
+class SearchQueryError(QueryError):
+    """Raised when there is an error with a search query."""
+
+    def __init__(self, query: str, message: str | None = None):
+        self.query = query
+        if message is None:
+            message = f"Search query failed: {query}"
+        super().__init__(message)

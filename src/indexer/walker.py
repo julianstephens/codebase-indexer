@@ -255,6 +255,13 @@ class WalkConfig:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "WalkConfig",
+    "is_ignored",
+    "load_ignore_file",
+    "walk",
+]
+
 
 def walk(
     repo_path: str,

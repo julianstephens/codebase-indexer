@@ -146,6 +146,15 @@ class ExportStats:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "ArtifactMeta",
+    "ExportStats",
+    "artifact_exists",
+    "export",
+    "import_artifact",
+    "read_meta",
+]
+
 
 def export(
     db_path: str,

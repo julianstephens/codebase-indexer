@@ -520,6 +520,10 @@ def _extract_swift_init(node: Node, lines: list[str]) -> str | None:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "extract",
+]
+
 
 def extract(path: str, source: str) -> list[NodeRecord]:
     """

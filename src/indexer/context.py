@@ -137,6 +137,13 @@ class _FileBlock:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "MODES",
+    "build_context",
+    "build_skeleton",
+    "estimate_tokens",
+]
+
 
 def build_context(
     db_path: str,

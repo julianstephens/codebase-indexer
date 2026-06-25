@@ -41,8 +41,14 @@ Token awareness:
 import logging
 from pathlib import Path
 
-from .context import estimate_tokens
-from .store import BFSResult, NodeRow, SearchParams, Store, open_path_readonly
+from indexer.queries.callers import query_callers
+from indexer.queries.models import SearchQueryResult
+from indexer.queries.search import query_search
+from indexer.queries.source import query_source
+from indexer.renderers import render_node_not_found, render_trace_text
+from indexer.renderers.text import render_search_text, render_source_text
+
+from .store import open_path_readonly
 
 logger = logging.getLogger(__name__)
 
@@ -129,91 +135,16 @@ def get_source(
 
         store = open_path_readonly(db_path)
         try:
-            return _get_source_impl(store, qualified_name, project)
+            res = query_source(store, qualified_name, project)
         finally:
             store.close()
+
+        if res is None:
+            return render_node_not_found(qualified_name)
+        return render_source_text(res)
     except Exception as exc:
         logger.exception("get_source failed for %r", qualified_name)
         return f"Error: get_source failed: {exc}"
-
-
-def _get_source_impl(
-    store: Store,
-    qualified_name: str,
-    project: str | None,
-) -> str:
-    """
-    Core implementation of get_source(), operating on an open Store.
-
-    Args:
-        store:          open Store (read-only)
-        qualified_name: exact QN to look up
-        project:        optional project filter
-
-    Returns:
-        Formatted output string.
-    """
-    node = store.get_node_by_qn(qualified_name, project=project)
-    if node is None:
-        return (
-            f"Node not found: {qualified_name!r}\n\n"
-            f'Hint: use search("{_bare_name(qualified_name)}") to find '
-            f"similarly named nodes."
-        )
-
-    source = _maybe_truncate(node.source)
-
-    callers_result = store.bfs_callers(
-        qualified_name,
-        project=project,
-        max_depth=1,
-        max_nodes=MAX_RELATED_SHOWN + 1,
-        edge_types=["CALLS"],
-    )
-    callees_result = store.bfs_callees(
-        qualified_name,
-        project=project,
-        max_depth=1,
-        max_nodes=MAX_RELATED_SHOWN + 1,
-        edge_types=["CALLS"],
-    )
-
-    callers = callers_result.visited if callers_result else []
-    callees = callees_result.visited if callees_result else []
-
-    parts: list[str] = []
-
-    # ── Header ──────────────────────────────────────────────────────────
-    parts.append(_SEP)
-    parts.append(
-        f"# {node.file_path}  lines {node.start_line}-{node.end_line}"
-        f"  [{node.label}]"
-    )
-    parts.append(f"# {node.qualified_name}")
-    parts.append(_SEP)
-    parts.append("")
-
-    # ── Source ──────────────────────────────────────────────────────────
-    parts.append(source)
-    parts.append("")
-
-    # ── Related nodes ────────────────────────────────────────────────────
-    parts.append(_SEP)
-
-    caller_lines = _format_related(callers, "called by")
-    parts.append(caller_lines)
-    parts.append("")
-
-    callee_lines = _format_related(callees, "calls")
-    parts.append(callee_lines)
-
-    # ── Token estimate ───────────────────────────────────────────────────
-    body = "\n".join(parts)
-    token_est = estimate_tokens(body)
-    parts.append(f"\n# ~{token_est} tokens")
-    parts.append(_SEP)
-
-    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +155,7 @@ def _get_source_impl(
 def search(
     db_path: str,
     query: str,
+    file_pattern: str | None = None,
     project: str | None = None,
     label: str | None = None,
     limit: int = 10,
@@ -254,6 +186,7 @@ def search(
                     - AND/OR/NOT:  "charge AND stripe"
                     - prefix:      "charg*"
                     - phrase:      '"charge user"'
+        file_pattern: optional glob pattern to filter results by file path.
         project:  optional project filter. None = all projects.
         label:    optional label filter, e.g. "Function" or "Class".
         limit:    maximum number of results to return. Defaults to 10.
@@ -277,75 +210,18 @@ def search(
 
         store = open_path_readonly(db_path)
         try:
-            return _search_impl(store, query, project, label, limit)
+            res = query_search(store, query, file_pattern, project, label, limit)
         finally:
             store.close()
 
+        if not res:
+            return render_search_text(
+                SearchQueryResult(query=query, matches=tuple(), total=0)
+            )
+        return render_search_text(res)
     except Exception as exc:
         logger.exception("search failed for query %r", query)
         return f"Error: search failed: {exc}"
-
-
-def _search_impl(
-    store: Store,
-    query: str,
-    project: str | None,
-    label: str | None,
-    limit: int,
-) -> str:
-    """
-    Core implementation of search(), operating on an open Store.
-
-    Args:
-        store:   open Store (read-only)
-        query:   FTS5 query string
-        project: optional project filter
-        label:   optional label filter
-        limit:   maximum results
-
-    Returns:
-        Formatted search results string.
-    """
-    params = SearchParams(
-        project=project,
-        label=label,
-        fts_query=query,
-        limit=limit,
-    )
-    result = store.search_nodes(params)
-
-    if result.total == 0:
-        return (
-            f"# search: {query!r}  (0 results)\n\n"
-            f"No nodes matched. Try:\n"
-            f'  - shorter query: search("{_bare_name(query)}")\n'
-            f'  - different terms: search("payment process")\n'
-            f"  - remove label filter"
-            if label
-            else "No nodes matched. Try a shorter or broader query."
-        )
-
-    parts: list[str] = []
-    shown = len(result.rows)
-    total_note = (
-        f"showing {shown} of {result.total}"
-        if result.total > shown
-        else str(result.total)
-    )
-    parts.append(f"# search: {query!r}  ({total_note} results)")
-    parts.append(_SEP)
-
-    for node in result.rows:
-        parts.append(_format_search_hit(node))
-        parts.append("")
-
-    if result.total > shown:
-        parts.append(
-            f"# {result.total - shown} more results — narrow your query or "
-            f'use search("{query}", limit={min(limit * 2, 50)})'
-        )
-
-    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -411,287 +287,15 @@ def trace_callers(
 
         store = open_path_readonly(db_path)
         try:
-            return _trace_callers_impl(store, qualified_name, project, depth)
+            res = query_callers(store, qualified_name, project, depth)
         finally:
             store.close()
+
+        if res is None:
+            return render_node_not_found(qualified_name)
+
+        return render_trace_text(res)
 
     except Exception as exc:
         logger.exception("trace_callers failed for %r", qualified_name)
         return f"Error: trace_callers failed: {exc}"
-
-
-def _trace_callers_impl(
-    store: Store,
-    qualified_name: str,
-    project: str | None,
-    depth: int,
-) -> str:
-    """
-    Core implementation of trace_callers(), operating on an open Store.
-
-    Args:
-        store:          open Store (read-only)
-        qualified_name: exact QN to start BFS from
-        project:        optional project filter
-        depth:          maximum BFS hops
-
-    Returns:
-        Formatted blast-radius string.
-    """
-    # Verify the node exists
-    node = store.get_node_by_qn(qualified_name, project=project)
-    if node is None:
-        return (
-            f"Node not found: {qualified_name!r}\n\n"
-            f'Hint: use search("{_bare_name(qualified_name)}") to find '
-            f"similarly named nodes."
-        )
-
-    result = store.bfs_callers(
-        qualified_name,
-        project=project,
-        max_depth=depth,
-        max_nodes=200,
-        edge_types=["CALLS"],
-    )
-
-    parts: list[str] = []
-    parts.append(f"# trace_callers: {qualified_name}  (depth={depth})")
-
-    if result is None or not result.visited:
-        parts.append("# 0 callers found")
-        parts.append(_SEP)
-        parts.append("(no callers — this node is not called by any indexed code)")
-        parts.append(_SEP)
-        return "\n".join(parts)
-
-    total_callers = len(result.visited)
-    max_hop = max(hop for _, hop in result.visited)
-    hop_label = "hop" if max_hop == 1 else "hops"
-    parts.append(f"# {total_callers} callers found across {max_hop} {hop_label}")
-    parts.append(_SEP)
-
-    # Group by hop depth
-    by_hop: dict[int, list[NodeRow]] = {}
-    for caller_node, hop in result.visited:
-        by_hop.setdefault(hop, []).append(caller_node)
-
-    # Build edge confidence map: target_id → confidence
-    confidence_map = _build_confidence_map(result)
-
-    for hop in sorted(by_hop.keys()):
-        hop_nodes = by_hop[hop]
-        label = "direct callers" if hop == 1 else "indirect callers"
-        parts.append(f"\nhop {hop} — {label} ({len(hop_nodes)})")
-
-        for caller in sorted(hop_nodes, key=lambda n: n.qualified_name):
-            conf = confidence_map.get(caller.id, 0.0)
-            conf_str = f"confidence={conf:.2f}" if conf > 0 else ""
-            qn_display = _format_qn(caller.qualified_name, width=60)
-            parts.append(f"  {qn_display}  {conf_str}")
-
-    parts.append("")
-    parts.append(
-        f"# blast radius: {total_callers} node{'s' if total_callers != 1 else ''}"
-        f" across {max_hop} hop{'s' if max_hop != 1 else ''}"
-    )
-
-    body = "\n".join(parts)
-    token_est = estimate_tokens(body)
-    parts.append(f"# ~{token_est} tokens")
-    parts.append(_SEP)
-
-    return "\n".join(parts)
-
-
-# ---------------------------------------------------------------------------
-# Internal formatting helpers
-# ---------------------------------------------------------------------------
-
-
-def _format_related(
-    visited: list[tuple[NodeRow, int]],
-    direction: str,
-) -> str:
-    """
-    Format the callers or callees section of get_source() output.
-
-    Produces lines like:
-        # called by (2):
-            src.payments.views.checkout                   views.py:88
-            src.orders.processor.complete_order   processor.py:142
-
-    Args:
-        visited:   list of (NodeRow, hop_depth) from bfs_callers/callees.
-                   Only hop=1 nodes are shown (direct relationships only).
-        direction: "called by" or "calls"
-
-    Returns:
-        Formatted multi-line string.
-    """
-    direct = [n for n, hop in visited if hop == 1]
-    count = len(direct)
-
-    if count == 0:
-        return f"# {direction} (0):\n    (none)"
-
-    lines = [f"# {direction} ({count}):"]
-    shown = direct[:MAX_RELATED_SHOWN]
-    for node in sorted(shown, key=lambda n: n.qualified_name):
-        loc = f"{Path(node.file_path).name}:{node.start_line}"
-        qn_display = _format_qn(node.qualified_name, width=52)
-        lines.append(f"    {qn_display}  {loc}")
-
-    if count > MAX_RELATED_SHOWN:
-        lines.append(f"    ... and {count - MAX_RELATED_SHOWN} more")
-
-    return "\n".join(lines)
-
-
-def _format_search_hit(node: NodeRow) -> str:
-    """
-    Format a single search result node for the search() output.
-
-    Produces lines like:
-        src.payments.repository.find_payment
-          Function  src/payments/repository.py:23
-          def find_payment(payment_id: str) -> Payment | None:
-
-    Args:
-        node: NodeRow from search_nodes()
-
-    Returns:
-        Multi-line string for this search hit.
-    """
-    sig = _truncate_sig(node.signature, 80)
-    return (
-        f"{node.qualified_name}\n"
-        f"  {node.label}  {node.file_path}:{node.start_line}\n"
-        f"  {sig}"
-    )
-
-
-def _build_confidence_map(result: BFSResult) -> dict[int, float]:
-    """
-    Build a dict mapping node_id → highest confidence of any edge to it.
-
-    Used by trace_callers() to display confidence scores alongside each
-    caller. When multiple edges point to the same node (via different
-    intermediate nodes), takes the maximum confidence.
-
-    Args:
-        result: BFSResult from store.bfs_callers()
-
-    Returns:
-        Dict mapping NodeRow.id → float confidence score.
-        Missing IDs default to 0.0 at the call site.
-    """
-    conf_map: dict[int, float] = {}
-    for edge in result.edges:
-        conf = edge.properties.get("confidence", 0.0)
-        if not isinstance(conf, (int, float)):
-            conf = 0.0
-        # edge.source_id is the caller; we want to annotate the caller node
-        current = conf_map.get(edge.source_id, 0.0)
-        if conf > current:
-            conf_map[edge.source_id] = float(conf)
-    return conf_map
-
-
-def _format_qn(qn: str, width: int) -> str:
-    """
-    Left-justify a qualified name in a field of the given width.
-
-    Truncates from the left (keeping the tail) if the QN is longer
-    than width, replacing the truncated prefix with "...". This keeps
-    the most specific (rightmost) part of the name visible.
-
-    Args:
-        qn:    qualified name string
-        width: desired field width in characters
-
-    Returns:
-        String of exactly `width` characters (padded or truncated).
-
-    Examples:
-        >>> _format_qn("src.payments.service.charge", 30)
-        'src.payments.service.charge   '
-        >>> _format_qn("src.very.long.module.path.charge", 20)
-        '...module.path.charge'
-    """
-    if len(qn) <= width:
-        return qn.ljust(width)
-    # Truncate from the left
-    tail = qn[-(width - 3) :]
-    return f"...{tail}"
-
-
-def _truncate_sig(signature: str, max_len: int) -> str:
-    """
-    Truncate a signature to at most max_len characters.
-
-    Appends "..." if truncation occurs. Attempts to cut at a comma or
-    space boundary within 20 chars of the limit.
-
-    Args:
-        signature: single-line signature string
-        max_len:   maximum character length including "..."
-
-    Returns:
-        Signature of length <= max_len.
-    """
-    if len(signature) <= max_len:
-        return signature
-    cut = max_len - 3
-    for i in range(cut, max(cut - 20, 0), -1):
-        if i < len(signature) and signature[i] in (",", " "):
-            return signature[:i] + "..."
-    return signature[:cut] + "..."
-
-
-def _maybe_truncate(source: str) -> str:
-    """
-    Truncate source text at MAX_SOURCE_BYTES, appending a notice.
-
-    The notice is appended on a new line:
-        \n# [source truncated at 32768 bytes — call get_source() with
-        #  a more specific node QN to see remaining content]
-
-    Args:
-        source: raw source text
-
-    Returns:
-        Source text, possibly truncated.
-    """
-    encoded = source.encode("utf-8", errors="replace")
-    if len(encoded) <= MAX_SOURCE_BYTES:
-        return source
-    truncated = encoded[:MAX_SOURCE_BYTES].decode("utf-8", errors="replace")
-    # Snap to last newline to avoid cutting mid-line
-    last_nl = truncated.rfind("\n")
-    if last_nl > MAX_SOURCE_BYTES // 2:
-        truncated = truncated[:last_nl]
-    return (
-        truncated + f"\n# [source truncated at {MAX_SOURCE_BYTES} bytes — "
-        f"use a more specific QN to see the full body]"
-    )
-
-
-def _bare_name(qn: str) -> str:
-    """
-    Extract the final component of a qualified name for hint messages.
-
-    Args:
-        qn: qualified name string, e.g. "src.payments.service.charge"
-
-    Returns:
-        Last component, e.g. "charge". Returns the input unchanged if
-        there are no dots.
-
-    Examples:
-        >>> _bare_name("src.payments.service.charge")
-        'charge'
-        >>> _bare_name("charge")
-        'charge'
-    """
-    return qn.rsplit(".", 1)[-1] if "." in qn else qn

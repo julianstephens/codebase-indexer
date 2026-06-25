@@ -162,6 +162,12 @@ _MINIFIED_INDICATORS: tuple[str, ...] = (
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "extract_fallback",
+    "should_skip",
+    "truncate_source",
+]
+
 
 def extract_fallback(
     path: str,

@@ -214,6 +214,13 @@ class PipelineResult:
 # Public API
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "PipelineConfig",
+    "PipelineResult",
+    "run",
+    "run_incremental",
+]
+
 
 def run(
     repo_path: str,

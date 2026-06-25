@@ -1,32 +1,112 @@
+import json
 import sys
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, NoReturn
 
 import typer
 from rich import print
 from rich.console import Console
 from typer import Argument, Option, Typer
 
-from indexer import context, pipeline
+from indexer.context import build_context, build_skeleton
 from indexer.pipeline import PipelineConfig
+from indexer.pipeline import run as run_pipeline
+from indexer.queries import query_callers, query_search, query_source
+from indexer.renderers import (
+    render_node_not_found,
+    render_search_json,
+    render_search_text,
+    render_source_json,
+    render_source_text,
+    render_trace_json,
+    render_trace_text,
+)
 from indexer.store import (
     DEFAULT_CACHE_DIR,
-    SearchParams,
     default_db_path,
     open_path_readonly,
 )
 
+OutputFormat = Literal["text", "json"]
+
 app = Typer(name="indexer", help="Codebase Indexer CLI")
 
 
-def _resolve_db(
+def _require_db(
     project: str,
-    db: Optional[str],
+    db: str | None,
     cache_dir: str,
 ) -> str:
-    if db:
-        return db
-    return default_db_path(project, cache_dir)
+    """
+    Resolve and validate the database path for a query command.
+
+    Args:
+        project: project name used to derive the default database path.
+        db: optional explicit database path.
+        cache_dir: directory containing project databases.
+    Returns:
+        Existing database path.
+    Raises:
+        typer.Exit: if the resolved database does not exist.
+    """
+    db_path = db if db else default_db_path(project, cache_dir)
+    if not Path(db_path).exists():
+        print(
+            f"Error: database not found at {db_path!r}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(1)
+    return db_path
+
+
+def _write_result(
+    text: str,
+    json_result: dict[str, object],
+    output_format: OutputFormat,
+) -> None:
+    """
+    Write a rendered query result to standard output.
+
+    Text output is printed without Rich markup processing.
+    JSON output is serialized directly so it remains suitable for scripts and agent
+    tools.
+
+    Args:
+        text: human-readable rendered result.
+        json_result: JSON-compatible rendered result.
+        output_format: requested output format.
+    """
+    if output_format == "json":
+        sys.stdout.write(
+            json.dumps(
+                json_result,
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
+        )
+        return
+    console = Console()
+    console.print(
+        text,
+        markup=False,
+        highlight=False,
+    )
+
+
+def _fail_node_not_found(qualified_name: str) -> NoReturn:
+    """Print a node-not-found response and exit the command.
+
+    Args:
+        qualified_name: qualified name requested by the caller.
+    Raises:
+        typer.Exit: always, with exit status 1.
+    """
+    print(
+        render_node_not_found(qualified_name),
+        file=sys.stderr,
+    )
+    raise typer.Exit(1)
 
 
 @app.command(name="index", help="Index a codebase")
@@ -80,7 +160,7 @@ def index(
         verbose=verbose,
     )
     try:
-        result = pipeline.run(repo_path, cfg)
+        result = run_pipeline(repo_path, cfg)
     except NotADirectoryError as exc:
         print(f"[red]Error:[/red] {repo_path!r} is not a directory")
         raise typer.Exit(1) from exc
@@ -148,15 +228,12 @@ def skeleton(
         ),
     ] = None,
 ) -> None:
-    db_path = _resolve_db(project, db, cache_dir)
-    if not Path(db_path).exists():
-        print(f"Error: database not found at {db_path!r}", file=sys.stderr)
-        raise typer.Exit(1)
+    db_path = _require_db(project or "", db, cache_dir)
     try:
         text = (
-            context.build_skeleton(db_path, project)
+            build_skeleton(db_path, project)
             if mode is None
-            else context.build_context(db_path, project, mode=mode)
+            else build_context(db_path, project, mode=mode)
         )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -191,22 +268,38 @@ def get_source(
             file_okay=False,
         ),
     ] = DEFAULT_CACHE_DIR,
+    output_format: Annotated[
+        OutputFormat,
+        Option(
+            "--format",
+            "-f",
+            help="Output format: text (default) or json",
+        ),
+    ] = "text",
 ) -> None:
-    db_path = _resolve_db(project or "", db, cache_dir)
-    if not Path(db_path).exists():
-        print(f"Error: database not found at {db_path!r}", file=sys.stderr)
+    if not db and not project:
+        print(
+            "Error: provide --project or --db",
+            file=sys.stderr,
+        )
         raise typer.Exit(1)
-    st = open_path_readonly(db_path)
+    db_path = _require_db(project or "", db, cache_dir)
+    store = open_path_readonly(db_path)
     try:
-        node = st.get_node_by_qn(qualified_name, project=project)
+        result = query_source(
+            store,
+            qualified_name,
+            project=project,
+        )
     finally:
-        st.close()
-    if node is None:
-        print(f"Symbol not found: {qualified_name!r}", file=sys.stderr)
-        raise typer.Exit(1)
-    location = f"{node.file_path}:{node.start_line}-{node.end_line}"
-    print(f"# {node.label}: {node.qualified_name}  ({location})")
-    print(node.source)
+        store.close()
+    if result is None:
+        _fail_node_not_found(qualified_name)
+    _write_result(
+        render_source_text(result),
+        render_source_json(result),
+        output_format,
+    )
 
 
 @app.command(
@@ -230,12 +323,12 @@ def search(
             help="Filter by label: Function, Class, Method, Interface, Type",
         ),
     ] = None,
-    file: Annotated[
+    file_pattern: Annotated[
         str | None,
         Option(
             "--file",
             "-f",
-            help="SQL LIKE pattern for file path, e.g. 'src/payments/%'",
+            help="SQL LIKE pattern for file paths",
         ),
     ] = None,
     limit: Annotated[
@@ -250,31 +343,124 @@ def search(
         str,
         Option("--cache-dir", help="Directory for .db files"),
     ] = DEFAULT_CACHE_DIR,
+    output_format: Annotated[
+        OutputFormat,
+        Option(
+            "--format",
+            "-f",
+            help="Output format: text (default) or json",
+        ),
+    ] = "text",
 ) -> None:
     if not db and not project:
-        print("Error: provide --project or --db", file=sys.stderr)
+        print(
+            "Error: provide --project or --db",
+            file=sys.stderr,
+        )
         raise typer.Exit(1)
-    db_path = _resolve_db(project or "", db, cache_dir)
-    if not Path(db_path).exists():
-        print(f"Error: database not found at {db_path!r}", file=sys.stderr)
-        raise typer.Exit(1)
-    params = SearchParams(
-        project=project,
-        label=label,
-        file_pattern=file,
-        fts_query=query,
-        limit=limit,
-    )
-    st = open_path_readonly(db_path)
+    db_path = _require_db(project or "", db, cache_dir)
+    store = open_path_readonly(db_path)
     try:
-        result = st.search_nodes(params)
+        result = query_search(
+            store,
+            query,
+            project=project,
+            label=label,
+            file_pattern=file_pattern,
+            limit=limit,
+        )
     finally:
-        st.close()
-    if not result.rows:
-        print("No results found.", file=sys.stderr)
-        return
-    print(f"Found {result.total} result(s) (showing {len(result.rows)}):\n")
-    for node in result.rows:
-        print(f"[{node.label}] {node.qualified_name}")
-        print(f"  {node.file_path}:{node.start_line}  {node.signature}")
-        print()
+        store.close()
+    if result is None:
+        _fail_node_not_found(query)
+    _write_result(
+        render_search_text(result),
+        render_search_json(result),
+        output_format,
+    )
+
+
+@app.command(
+    name="trace-callers",
+    help="Trace direct and indirect callers of a symbol",
+)
+def trace_callers(
+    qualified_name: Annotated[
+        str,
+        Argument(
+            help=("Qualified name of the symbol, " "e.g. my_app.src.service.charge")
+        ),
+    ],
+    project: Annotated[
+        str | None,
+        Option(
+            "--project",
+            "-p",
+            help="Project name (required when db is not given)",
+        ),
+    ] = None,
+    depth: Annotated[
+        int,
+        Option(
+            "--depth",
+            "-d",
+            min=1,
+            max=10,
+            help="Maximum number of caller hops",
+        ),
+    ] = 3,
+    db: Annotated[
+        str | None,
+        Option("--db", help="Path to the .db file"),
+    ] = None,
+    cache_dir: Annotated[
+        str,
+        Option(
+            "--cache-dir",
+            help="Directory for .db files",
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = DEFAULT_CACHE_DIR,
+    output_format: Annotated[
+        OutputFormat,
+        Option(
+            "--format",
+            help="Output format: text or json",
+        ),
+    ] = "text",
+) -> None:
+    """Trace callers of one indexed symbol.
+
+    Args:
+        qualified_name: exact qualified name of the starting symbol.
+        project: optional project filter.
+        depth: maximum caller traversal depth.
+        db: optional explicit database path.
+        cache_dir: directory containing project databases.
+        output_format: text or JSON output.
+    """
+    if not db and not project:
+        print(
+            "Error: provide --project or --db",
+            file=sys.stderr,
+        )
+        raise typer.Exit(1)
+    db_path = _require_db(project or "", db, cache_dir)
+    store = open_path_readonly(db_path)
+    try:
+        result = query_callers(
+            store,
+            qualified_name,
+            project=project,
+            depth=depth,
+        )
+    finally:
+        store.close()
+    if result is None:
+        _fail_node_not_found(qualified_name)
+    _write_result(
+        render_trace_text(result),
+        render_trace_json(result),
+        output_format,
+    )
