@@ -21,7 +21,7 @@ from indexer.queries.models import (
     TraceQueryResult,
 )
 
-from ._common import (
+from .common import (
     MAX_RELATED_SHOWN,
     MAX_SEARCH_SIGNATURE_LEN,
     MAX_SOURCE_BYTES,

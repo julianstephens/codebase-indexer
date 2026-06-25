@@ -1,0 +1,12 @@
+repository_id = "codebase-indexer-py"
+path = "/home/julian/workspace/codebase-indexer-py"
+revision = "42a516089d790239736d22515dc94ea1ec434626"
+project = "codebase-indexer-py"
+languages = ["python"]
+
+exclude = [
+    ".git",
+    ".venv",
+    "dist",
+    "build",
+]

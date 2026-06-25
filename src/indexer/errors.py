@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 class IndexerError(Exception):
     """Base class for all indexer errors."""
 
@@ -246,3 +249,49 @@ class MixedTokenCounterError(EvaluationReportingError):
         self.counter_names = frozenset(counter_names)
         counters = ", ".join(sorted(counter_names))
         super().__init__(f"Scenario contains multiple token counters: {counters}")
+
+
+class RepositoryPreparationError(EvaluationError):
+    pass
+
+
+class RevisionMismatchError(RepositoryPreparationError):
+    pass
+
+
+class RepositoryPathError(RepositoryPreparationError):
+    pass
+
+
+class CorpusError(EvaluationError):
+    """Raised when a benchmark corpus definition is invalid."""
+
+
+class CorpusFileError(CorpusError):
+    """Raised when a corpus manifest cannot be read or decoded."""
+
+    def __init__(self, path: str | Path, message: str | None = None):
+        self.path = str(path)
+        if message is None:
+            message = f"Corpus file error: {path}"
+        super().__init__(message)
+
+
+class InvalidRepositorySpecError(CorpusError):
+    """Raised when a repository specification is invalid."""
+
+    def __init__(self, spec: str | Path, message: str | None = None):
+        self.spec = str(spec)
+        if message is None:
+            message = f"Invalid repository specification: {spec}"
+        super().__init__(message)
+
+
+class InvalidBenchmarkTaskError(CorpusError):
+    """Raised when a benchmark task is invalid."""
+
+    def __init__(self, task: str | Path, message: str | None = None):
+        self.task = str(task)
+        if message is None:
+            message = f"Invalid benchmark task: {task}"
+        super().__init__(message)

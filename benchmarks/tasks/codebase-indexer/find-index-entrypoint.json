@@ -1,0 +1,37 @@
+{
+    "task_id": "find-index-entrypoint",
+    "repository_id": "codebase-indexer-py",
+    "description": "Find the entry point for indexing a repository, inspect its implementation, trace its direct callers, and inspect one caller.",
+    "oracle_files": [
+        "src/indexer/cli.py",
+        "src/indexer/indexing.py"
+    ],
+    "indexed_steps": [
+        {
+            "name": "search",
+            "arguments": {
+                "query": "index repository",
+                "limit": 10
+            },
+            "purpose": "Locate the indexing entry point.",
+            "content_kind": "search_result"
+        },
+        {
+            "name": "get_source",
+            "arguments": {
+                "qualified_name": "REPLACE_WITH_ACTUAL_QUALIFIED_NAME"
+            },
+            "purpose": "Inspect the implementation.",
+            "content_kind": "symbol_source"
+        },
+        {
+            "name": "trace_callers",
+            "arguments": {
+                "qualified_name": "REPLACE_WITH_ACTUAL_QUALIFIED_NAME",
+                "depth": 1
+            },
+            "purpose": "Find direct callers.",
+            "content_kind": "caller_trace"
+        }
+    ]
+}

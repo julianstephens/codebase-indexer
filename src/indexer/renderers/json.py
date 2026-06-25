@@ -12,8 +12,8 @@ Public API:
 
 import json
 
-from ..context import estimate_tokens
-from ..queries.models import (
+from indexer.context import estimate_tokens
+from indexer.queries import (
     RelatedSymbol,
     SearchQueryResult,
     SourceQueryResult,
@@ -21,7 +21,8 @@ from ..queries.models import (
     TraceEntry,
     TraceQueryResult,
 )
-from ._common import truncate_source
+
+from .common import truncate_source
 
 FORMAT_VERSION: int = 1
 
