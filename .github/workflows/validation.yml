@@ -1,0 +1,79 @@
+name: Validation
+
+on:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: 0.11.17
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Lint code
+        id: lint-code
+        continue-on-error: true
+        run: |
+          output=$(uvx ruff check)
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "lint=$(echo "$output" | sed 's/"/\\"/g')" >> $GITHUB_OUTPUT
+            exit $exit_code
+          fi
+
+      - name: Run tests
+        id: run-tests
+        continue-on-error: true
+        run: |
+          output=$(uv run pytest tests)
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "tests=$(echo "$output" | sed 's/"/\\"/g')" >> $GITHUB_OUTPUT
+            exit $exit_code
+          fi
+
+      - name: Get Job Link
+        id: get-link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Fetch job URL using GitHub CLI and jq filtering
+          JOB_URL=$(gh run view ${{ github.run_id }} --json jobs --jq '.jobs[] | select(.name == "Validation" or .name == "${{ github.job }}") | .url' | head -n 1)
+          echo "url=$JOB_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Failure PR comment
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          LINT_OUTPUT: ${{ steps.lint-code.outputs.lint }}
+          TESTS_OUTPUT: ${{ steps.run-tests.outputs.tests }}
+        with:
+          script: |
+            let msg = "# Validation failed\n\n";
+            if (process.env.LINT_OUTPUT) {
+              msg += "## Linting Errors\n```\n" + process.env.LINT_OUTPUT + "\n```\n";
+            }
+            if (process.env.TESTS_OUTPUT) {
+              msg += "## Test Failures\n```\n" + process.env.TESTS_OUTPUT + "\n```\n";
+            }
+
+            msg += `[View full logs](${{ steps.get-link.outputs.url }})`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: msg
+            })
